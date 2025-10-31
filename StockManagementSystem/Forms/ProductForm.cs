@@ -15,8 +15,6 @@ namespace StockManagementSystem.Forms
 
             // Make sure DataGridView auto-generates columns
             dgvProducts.AutoGenerateColumns = true;
-            dgvProducts.AutoGenerateColumns = true;
-
             dgvProducts.BackgroundColor = System.Drawing.Color.White; // grid background
             dgvProducts.DefaultCellStyle.BackColor = System.Drawing.Color.White; // row background
             dgvProducts.DefaultCellStyle.ForeColor = System.Drawing.Color.Black; // text color
@@ -24,7 +22,6 @@ namespace StockManagementSystem.Forms
             dgvProducts.DefaultCellStyle.SelectionForeColor = System.Drawing.Color.Black; // selected text
             dgvProducts.RowHeadersDefaultCellStyle.BackColor = System.Drawing.Color.White;
             dgvProducts.RowHeadersDefaultCellStyle.ForeColor = System.Drawing.Color.Black;
-
             // Event handlers
             dgvProducts.CellClick += dgvProducts_CellClick;
             btnAdd.Click += btnAdd_Click;
@@ -33,6 +30,9 @@ namespace StockManagementSystem.Forms
             btnClear.Click += btnClear_Click;
             btnRefresh.Click += btnRefresh_Click;
             btnSearch.Click += btnSearch_Click;
+
+            // When sorting, refresh row numbers
+            dgvProducts.Sorted += (s, e) => AddRowNumbers();
         }
 
         private void ProductForm_Load(object sender, EventArgs e)
@@ -46,6 +46,7 @@ namespace StockManagementSystem.Forms
             {
                 dgvProducts.DataSource = ProductManager.GetAllProducts();
                 CleanUpDataGridView();
+                AddRowNumbers(); // Add row numbers after loading
             }
             catch (Exception ex)
             {
@@ -80,30 +81,107 @@ namespace StockManagementSystem.Forms
             }
         }
 
-        // --- CRUD Operations ---
+        // ✅ Add row numbering column (No.)
+        private void AddRowNumbers()
+        {
+            try
+            {
+                // Add the column only once
+                if (!dgvProducts.Columns.Contains("No"))
+                {
+                    DataGridViewTextBoxColumn noColumn = new DataGridViewTextBoxColumn
+                    {
+                        Name = "No",
+                        HeaderText = "No.",
+                        ReadOnly = true,
+                        Width = 50
+                    };
+                    dgvProducts.Columns.Insert(0, noColumn);
+                }
 
+                // Fill row numbers
+                for (int i = 0; i < dgvProducts.Rows.Count; i++)
+                {
+                    dgvProducts.Rows[i].Cells["No"].Value = (i + 1).ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error adding row numbers: {ex.Message}");
+            }
+        }
+
+        // --- CRUD Operations ---
         private void btnAdd_Click(object sender, EventArgs e)
         {
             if (!ValidateFields(out int quantity, out decimal price)) return;
 
             Product product = new Product
             {
-                ProductName = txtProductName.Text,
-                Category = txtCategory.Text,
+                ProductName = txtProductName.Text.Trim(),
+                Category = txtCategory.Text.Trim(),
                 Quantity = quantity,
                 Price = price
             };
 
-            string result = ProductManager.AddProduct(product);
-            if (result == "OK")
+            try
             {
-                MessageBox.Show("Product added successfully!");
-                ClearFields();
-                LoadProducts();
+                // ✅ Step 1: Check if product already exists (same name & category)
+                DataTable existingProducts = ProductManager.SearchProducts(product.ProductName);
+
+                bool found = false;
+                int existingProductId = -1;
+                int existingQty = 0;
+
+                foreach (DataRow row in existingProducts.Rows)
+                {
+                    if (row["ProductName"].ToString().Trim().Equals(product.ProductName, StringComparison.OrdinalIgnoreCase)
+                        && row["Category"].ToString().Trim().Equals(product.Category, StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = true;
+                        existingProductId = Convert.ToInt32(row["ProductID"]);
+                        existingQty = Convert.ToInt32(row["Quantity"]);
+                        break;
+                    }
+                }
+
+                // ✅ Step 2: If found, update quantity instead of adding new
+                if (found)
+                {
+                    int newQty = existingQty + product.Quantity;
+                    product.ProductID = existingProductId;
+                    product.Quantity = newQty;
+
+                    if (ProductManager.UpdateProduct(product))
+                    {
+                        MessageBox.Show($"Existing product found — quantity updated to {newQty}.", "Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        ClearFields();
+                        LoadProducts();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Failed to update existing product.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                else
+                {
+                    // ✅ Step 3: If not found, insert new product
+                    string result = ProductManager.AddProduct(product);
+                    if (result == "OK")
+                    {
+                        MessageBox.Show("New product added successfully!");
+                        ClearFields();
+                        LoadProducts();
+                    }
+                    else
+                    {
+                        MessageBox.Show(result, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show(result, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error adding product: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -185,6 +263,7 @@ namespace StockManagementSystem.Forms
                 {
                     dgvProducts.DataSource = ProductManager.SearchProducts(keyword);
                     CleanUpDataGridView();
+                    AddRowNumbers(); // Ensure row numbers appear after search
                 }
                 catch (Exception ex)
                 {
@@ -199,7 +278,6 @@ namespace StockManagementSystem.Forms
 
             DataGridViewRow row = dgvProducts.Rows[e.RowIndex];
 
-            // Set the selected product ID
             if (row.Cells["ProductID"].Value != DBNull.Value)
                 selectedProductId = Convert.ToInt32(row.Cells["ProductID"].Value);
             else

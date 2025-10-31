@@ -42,6 +42,7 @@ namespace StockManagementSystem.Classes
                         cmd.Parameters.AddWithValue("@category", product.Category);
                         cmd.Parameters.AddWithValue("@quantity", product.Quantity);
                         cmd.Parameters.AddWithValue("@price", product.Price);
+                        cmd.Parameters.AddWithValue("@date", DateTime.Now);
                         cmd.ExecuteNonQuery();
                     }
                 }
@@ -128,5 +129,29 @@ namespace StockManagementSystem.Classes
             }
             return dt;
         }
+        // Get total product count
+        public static int GetTotalProducts()
+        {
+            int count = 0;
+            try
+            {
+                using (SqlConnection conn = DatabaseHelper.GetConnection())
+                {
+                    conn.Open();
+                    string query = "SELECT COUNT(*) FROM Products";
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        count = (int)cmd.ExecuteScalar();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error counting products: " + ex.Message);
+            }
+            return count;
+        }
+
     }
+
 }

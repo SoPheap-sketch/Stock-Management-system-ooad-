@@ -10,9 +10,9 @@ using System.Windows.Forms;
 
 namespace StockManagementSystem.Forms
 {
-    public partial class DashboardForm : Form
+    public partial class CustomerForm : Form
     {
-        public DashboardForm()
+        public CustomerForm()
         {
             InitializeComponent();
         }
