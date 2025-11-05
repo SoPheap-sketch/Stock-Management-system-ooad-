@@ -10,9 +10,20 @@ namespace StockManagementSystem.Classes
     {
         public int ProductID { get; set; } // Primary key
         public string ProductName { get; set; }
+
         public string Category { get; set; }
+
+        public string Description { get; set; } = string.Empty;
+        // public Category Category { get; set; } = null!;
         public int Quantity { get; set; }
         public decimal Price { get; set; }
         public DateTime AddedDate {  get; set; }
+
+        // Method 
+        public void UpdateStock(int quantity) => Quantity += quantity;
+
+        public bool IsInStock() => Quantity > 0;
+
+        public decimal CalculateValue() => Price * Quantity; 
     }
 }

@@ -47,13 +47,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\Category.cs" />
     <Compile Include="Classes\Customer.cs" />
     <Compile Include="Classes\CustomerManager.cs" />
     <Compile Include="Classes\DatabaseHelper.cs" />
     <Compile Include="Classes\Order.cs" />
+    <Compile Include="Classes\OrderItem.cs" />
     <Compile Include="Classes\OrderManager.cs" />
     <Compile Include="Classes\Product.cs" />
     <Compile Include="Classes\ProductManager.cs" />
+    <Compile Include="Classes\User.cs" />
     <Compile Include="Forms\CustomerForm.cs">
       <SubType>Form</SubType>
     </Compile>
