@@ -1,23 +1,32 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace StockManagementSystem.Classes
 {
-    internal class Customer
+    public class Customer
     {
-        public int CustomerId { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
-        public string Phone { get; set; } = string.Empty;   
-        public string Email { get; set; } = string.Empty;
+        public int CustomerID { get; set; }    // PK
+        public string Name { get; set; }
+        public string Address { get; set; }
+        public string Phone { get; set; }
+        public string Email { get; set; }
+
+        public Customer() { }
+
+        public Customer(int id, string name, string address, string phone, string email)
+        {
+            CustomerID = id;
+            Name = name;
+            Address = address;
+            Phone = phone;
+            Email = email;
+        }
 
         public void ValidateContactInfo()
         {
-            if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(Email))
-                throw new ArgumentException("Name and Email are rquired.");
+            if (string.IsNullOrWhiteSpace(Name))
+                throw new Exception("Customer name is required.");
+            if (string.IsNullOrWhiteSpace(Email))
+                throw new Exception("Customer email is required.");
         }
     }
 }

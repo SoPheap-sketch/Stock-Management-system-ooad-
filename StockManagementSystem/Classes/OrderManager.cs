@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.SqlClient;
+using System.Collections.Generic;
 
 namespace StockManagementSystem.Classes
 {
@@ -14,7 +15,23 @@ namespace StockManagementSystem.Classes
                 using (SqlConnection conn = DatabaseHelper.GetConnection())
                 {
                     conn.Open();
-                    string query = "SELECT * FROM Orders";
+                    string query = @"
+                        SELECT 
+                            o.OrderID, 
+                            o.CustomerID,
+                            c.Name AS CustomerName,
+                            o.OrderDate, 
+                            o.Status, 
+                            o.TotalAmount,
+                            p.ProductName,
+                            oi.Quantity,
+                            oi.Price
+                        FROM Orders o
+                        INNER JOIN OrderItems oi ON o.OrderID = oi.OrderID
+                        INNER JOIN Products p ON oi.ProductID = p.ProductID
+                        LEFT JOIN Customers c ON o.CustomerID = c.CustomerID
+                        ORDER BY o.OrderDate DESC";
+
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
                         SqlDataAdapter da = new SqlDataAdapter(cmd);
@@ -31,77 +48,160 @@ namespace StockManagementSystem.Classes
 
         public static void AddOrder(Order order)
         {
-            try
+            using (SqlConnection conn = DatabaseHelper.GetConnection())
             {
-                using (SqlConnection conn = DatabaseHelper.GetConnection())
+                SqlTransaction transaction = null;
+                try
                 {
                     conn.Open();
-                    string query = "INSERT INTO Orders (ProductID, ProductName, Quantity, Price, Status, OrderDate) " +
-                                   "VALUES (@pid, @pname, @qty, @price, @status, @date)";
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    transaction = conn.BeginTransaction();
+
+                    string insertOrder = @"
+                        INSERT INTO Orders (CustomerID, Status, OrderDate, TotalAmount)
+                        OUTPUT INSERTED.OrderID
+                        VALUES (@CustomerID, @Status, @OrderDate, @TotalAmount)";
+
+                    int orderId;
+                    using (SqlCommand cmd = new SqlCommand(insertOrder, conn, transaction))
                     {
-                        cmd.Parameters.AddWithValue("@pid", order.ProductID);
-                        cmd.Parameters.AddWithValue("@pname", order.ProductName);
-                        cmd.Parameters.AddWithValue("@qty", order.Quantity);
-                        cmd.Parameters.AddWithValue("@price", order.Price);
-                        cmd.Parameters.AddWithValue("@status", order.Status);
-                        cmd.Parameters.AddWithValue("@date", order.OrderDate);
-                        cmd.ExecuteNonQuery();
+                        cmd.Parameters.AddWithValue("@CustomerID", (object)(order.Customer == null ? DBNull.Value : (object)order.Customer.CustomerID));
+                        cmd.Parameters.AddWithValue("@Status", order.Status ?? "Pending");
+                        cmd.Parameters.AddWithValue("@OrderDate", order.OrderDate);
+                        cmd.Parameters.AddWithValue("@TotalAmount", order.CalculateTotal());
+                        orderId = (int)cmd.ExecuteScalar();
                     }
+
+                    foreach (var item in order.OrderItems)
+                    {
+                        string insertItem = @"
+                            INSERT INTO OrderItems (OrderID, ProductID, Quantity, Price)
+                            VALUES (@OrderID, @ProductID, @Quantity, @Price)";
+                        using (SqlCommand cmd = new SqlCommand(insertItem, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@OrderID", orderId);
+                            cmd.Parameters.AddWithValue("@ProductID", item.Product.ProductID);
+                            cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+                            cmd.Parameters.AddWithValue("@Price", item.PriceAtPurchase);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        string updateStock = "UPDATE Products SET Quantity = Quantity - @Quantity WHERE ProductID=@ProductID";
+                        using (SqlCommand cmd = new SqlCommand(updateStock, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+                            cmd.Parameters.AddWithValue("@ProductID", item.Product.ProductID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    transaction.Commit();
                 }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error adding order: " + ex.Message);
+                catch (Exception ex)
+                {
+                    transaction?.Rollback();
+                    throw new Exception("Error adding order: " + ex.Message);
+                }
             }
         }
 
         public static void UpdateOrder(Order order)
         {
-            try
+            using (SqlConnection conn = DatabaseHelper.GetConnection())
             {
-                using (SqlConnection conn = DatabaseHelper.GetConnection())
+                SqlTransaction transaction = null;
+                try
                 {
                     conn.Open();
-                    string query = "UPDATE Orders SET ProductID=@pid, ProductName=@pname, Quantity=@qty, Price=@price, Status=@status, OrderDate=@date " +
-                                   "WHERE OrderID=@id";
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    transaction = conn.BeginTransaction();
+
+                    // Update Order main info
+                    string updateOrder = @"
+                        UPDATE Orders 
+                        SET CustomerID=@CustomerID, Status=@Status, TotalAmount=@TotalAmount
+                        WHERE OrderID=@OrderID";
+
+                    using (SqlCommand cmd = new SqlCommand(updateOrder, conn, transaction))
                     {
-                        cmd.Parameters.AddWithValue("@id", order.OrderID);
-                        cmd.Parameters.AddWithValue("@pid", order.ProductID);
-                        cmd.Parameters.AddWithValue("@pname", order.ProductName);
-                        cmd.Parameters.AddWithValue("@qty", order.Quantity);
-                        cmd.Parameters.AddWithValue("@price", order.Price);
-                        cmd.Parameters.AddWithValue("@status", order.Status);
-                        cmd.Parameters.AddWithValue("@date", order.OrderDate);
+                        cmd.Parameters.AddWithValue("@OrderID", order.OrderID);
+                        cmd.Parameters.AddWithValue("@CustomerID", (object)(order.Customer == null ? DBNull.Value : (object)order.Customer.CustomerID));
+                        cmd.Parameters.AddWithValue("@Status", order.Status ?? "Pending");
+                        cmd.Parameters.AddWithValue("@TotalAmount", order.CalculateTotal());
                         cmd.ExecuteNonQuery();
                     }
+
+                    // Delete existing items first
+                    string deleteItems = "DELETE FROM OrderItems WHERE OrderID=@OrderID";
+                    using (SqlCommand cmd = new SqlCommand(deleteItems, conn, transaction))
+                    {
+                        cmd.Parameters.AddWithValue("@OrderID", order.OrderID);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Re-insert new items and update stock
+                    foreach (var item in order.OrderItems)
+                    {
+                        string insertItem = @"
+                            INSERT INTO OrderItems (OrderID, ProductID, Quantity, Price)
+                            VALUES (@OrderID, @ProductID, @Quantity, @Price)";
+                        using (SqlCommand cmd = new SqlCommand(insertItem, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@OrderID", order.OrderID);
+                            cmd.Parameters.AddWithValue("@ProductID", item.Product.ProductID);
+                            cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+                            cmd.Parameters.AddWithValue("@Price", item.PriceAtPurchase);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        string updateStock = "UPDATE Products SET Quantity = Quantity - @Quantity WHERE ProductID=@ProductID";
+                        using (SqlCommand cmd = new SqlCommand(updateStock, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+                            cmd.Parameters.AddWithValue("@ProductID", item.Product.ProductID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    transaction.Commit();
                 }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error updating order: " + ex.Message);
+                catch (Exception ex)
+                {
+                    transaction?.Rollback();
+                    throw new Exception("Error updating order: " + ex.Message);
+                }
             }
         }
 
         public static void DeleteOrder(int orderId)
         {
-            try
+            using (SqlConnection conn = DatabaseHelper.GetConnection())
             {
-                using (SqlConnection conn = DatabaseHelper.GetConnection())
+                SqlTransaction transaction = null;
+                try
                 {
                     conn.Open();
-                    string query = "DELETE FROM Orders WHERE OrderID=@id";
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    transaction = conn.BeginTransaction();
+
+                    string deleteItems = "DELETE FROM OrderItems WHERE OrderID=@OrderID";
+                    using (SqlCommand cmd = new SqlCommand(deleteItems, conn, transaction))
                     {
-                        cmd.Parameters.AddWithValue("@id", orderId);
+                        cmd.Parameters.AddWithValue("@OrderID", orderId);
                         cmd.ExecuteNonQuery();
                     }
+
+                    string deleteOrder = "DELETE FROM Orders WHERE OrderID=@OrderID";
+                    using (SqlCommand cmd = new SqlCommand(deleteOrder, conn, transaction))
+                    {
+                        cmd.Parameters.AddWithValue("@OrderID", orderId);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    transaction.Commit();
                 }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error deleting order: " + ex.Message);
+                catch (Exception ex)
+                {
+                    transaction?.Rollback();
+                    throw new Exception("Error deleting order: " + ex.Message);
+                }
             }
         }
     }

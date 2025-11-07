@@ -1,30 +1,39 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace StockManagementSystem.Classes
 {
     public class Order
     {
         public int OrderID { get; set; }
-        public int ProductID { get; set; }
-        public string ProductName { get; set; }
-        public int Quantity { get; set; }
-        public decimal Price { get; set; }
+        public int ProductID { get; set; }        // TEMP: for current form
+        public string ProductName { get; set; }   // TEMP: for current form
+        public int Quantity { get; set; }         // TEMP: for current form
+        public decimal Price { get; set; }        // TEMP: for current form
         public string Status { get; set; }
         public DateTime OrderDate { get; set; }
+        public decimal TotalAmount => Quantity * Price;
 
-        public decimal Total => Quantity * Price;
+        // --- New UML fields ---
+        public Customer Customer { get; set; }
+        public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
-        public Order() { }
-
-        public Order(int orderId, int productId, string productName, int quantity, decimal price, string status)
+        public decimal CalculateTotal()
         {
-            OrderID = orderId;
-            ProductID = productId;
-            ProductName = productName;
-            Quantity = quantity;
-            Price = price;
-            Status = status;
-            OrderDate = DateTime.Now;
+            decimal total = 0;
+            foreach (var item in OrderItems)
+                total += item.CalculateSubtotal();
+            return total;
+        }
+
+        public void AddItem(OrderItem item)
+        {
+            OrderItems.Add(item);
+        }
+
+        public void CompleteOrder()
+        {
+            Status = "Delivered";
         }
     }
 }

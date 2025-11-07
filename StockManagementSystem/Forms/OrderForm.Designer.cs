@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             this.dgvOrders = new System.Windows.Forms.DataGridView();
             this.cmbProduct = new System.Windows.Forms.ComboBox();
             this.lblProduct = new System.Windows.Forms.Label();
@@ -46,6 +46,8 @@
             this.btnClear = new System.Windows.Forms.Button();
             this.btnRefresh = new System.Windows.Forms.Button();
             this.btnSearch = new System.Windows.Forms.Button();
+            this.cmbCustomer = new System.Windows.Forms.ComboBox();
+            this.label1 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.dgvOrders)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numQuantity)).BeginInit();
             this.SuspendLayout();
@@ -54,14 +56,14 @@
             // 
             this.dgvOrders.AllowUserToAddRows = false;
             this.dgvOrders.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-            dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = System.Drawing.Color.White;
-            dataGridViewCellStyle3.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText;
-            dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-            this.dgvOrders.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
+            dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = System.Drawing.Color.White;
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            dataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText;
+            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dgvOrders.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
             this.dgvOrders.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvOrders.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.dgvOrders.Location = new System.Drawing.Point(0, 261);
@@ -70,7 +72,6 @@
             this.dgvOrders.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.dgvOrders.Size = new System.Drawing.Size(784, 300);
             this.dgvOrders.TabIndex = 0;
-           
             // 
             // cmbProduct
             // 
@@ -79,16 +80,15 @@
             "Delivered",
             "Pending",
             "Cancelled"});
-            this.cmbProduct.Location = new System.Drawing.Point(90, 24);
+            this.cmbProduct.Location = new System.Drawing.Point(316, 31);
             this.cmbProduct.Name = "cmbProduct";
             this.cmbProduct.Size = new System.Drawing.Size(121, 21);
             this.cmbProduct.TabIndex = 1;
-     
             // 
             // lblProduct
             // 
             this.lblProduct.AutoSize = true;
-            this.lblProduct.Location = new System.Drawing.Point(26, 28);
+            this.lblProduct.Location = new System.Drawing.Point(252, 35);
             this.lblProduct.Name = "lblProduct";
             this.lblProduct.Size = new System.Drawing.Size(44, 13);
             this.lblProduct.TabIndex = 2;
@@ -97,7 +97,7 @@
             // lblQuantity
             // 
             this.lblQuantity.AutoSize = true;
-            this.lblQuantity.Location = new System.Drawing.Point(252, 32);
+            this.lblQuantity.Location = new System.Drawing.Point(253, 86);
             this.lblQuantity.Name = "lblQuantity";
             this.lblQuantity.Size = new System.Drawing.Size(46, 13);
             this.lblQuantity.TabIndex = 3;
@@ -105,7 +105,7 @@
             // 
             // numQuantity
             // 
-            this.numQuantity.Location = new System.Drawing.Point(315, 25);
+            this.numQuantity.Location = new System.Drawing.Point(316, 79);
             this.numQuantity.Name = "numQuantity";
             this.numQuantity.Size = new System.Drawing.Size(120, 20);
             this.numQuantity.TabIndex = 4;
@@ -113,7 +113,7 @@
             // lblPrice
             // 
             this.lblPrice.AutoSize = true;
-            this.lblPrice.Location = new System.Drawing.Point(453, 28);
+            this.lblPrice.Location = new System.Drawing.Point(454, 82);
             this.lblPrice.Name = "lblPrice";
             this.lblPrice.Size = new System.Drawing.Size(46, 13);
             this.lblPrice.TabIndex = 5;
@@ -121,7 +121,7 @@
             // 
             // txtPrice
             // 
-            this.txtPrice.Location = new System.Drawing.Point(516, 24);
+            this.txtPrice.Location = new System.Drawing.Point(517, 78);
             this.txtPrice.Name = "txtPrice";
             this.txtPrice.Size = new System.Drawing.Size(100, 20);
             this.txtPrice.TabIndex = 6;
@@ -133,7 +133,6 @@
             this.cmbStatus.Name = "cmbStatus";
             this.cmbStatus.Size = new System.Drawing.Size(121, 21);
             this.cmbStatus.TabIndex = 7;
-  
             // 
             // lblStatus
             // 
@@ -150,7 +149,6 @@
             this.txtSearch.Name = "txtSearch";
             this.txtSearch.Size = new System.Drawing.Size(496, 20);
             this.txtSearch.TabIndex = 9;
- 
             // 
             // lblSearch
             // 
@@ -160,7 +158,6 @@
             this.lblSearch.Size = new System.Drawing.Size(75, 13);
             this.lblSearch.TabIndex = 10;
             this.lblSearch.Text = "Search Orders";
-
             // 
             // btnAdd
             // 
@@ -216,6 +213,27 @@
             this.btnSearch.Text = "Search";
             this.btnSearch.UseVisualStyleBackColor = true;
             // 
+            // cmbCustomer
+            // 
+            this.cmbCustomer.FormattingEnabled = true;
+            this.cmbCustomer.Items.AddRange(new object[] {
+            "Delivered",
+            "Pending",
+            "Cancelled"});
+            this.cmbCustomer.Location = new System.Drawing.Point(90, 31);
+            this.cmbCustomer.Name = "cmbCustomer";
+            this.cmbCustomer.Size = new System.Drawing.Size(121, 21);
+            this.cmbCustomer.TabIndex = 1;
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(5, 35);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(79, 13);
+            this.label1.TabIndex = 2;
+            this.label1.Text = "CustomerName";
+            // 
             // OrderForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -235,13 +253,14 @@
             this.Controls.Add(this.lblPrice);
             this.Controls.Add(this.numQuantity);
             this.Controls.Add(this.lblQuantity);
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.lblProduct);
+            this.Controls.Add(this.cmbCustomer);
             this.Controls.Add(this.cmbProduct);
             this.Controls.Add(this.dgvOrders);
             this.Name = "OrderForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Order Management";
-       
             ((System.ComponentModel.ISupportInitialize)(this.dgvOrders)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.numQuantity)).EndInit();
             this.ResumeLayout(false);
@@ -268,5 +287,7 @@
         private System.Windows.Forms.Button btnClear;
         private System.Windows.Forms.Button btnRefresh;
         private System.Windows.Forms.Button btnSearch;
+        private System.Windows.Forms.ComboBox cmbCustomer;
+        private System.Windows.Forms.Label label1;
     }
 }
