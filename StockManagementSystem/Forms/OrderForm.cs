@@ -28,7 +28,6 @@ namespace StockManagementSystem.Forms
             btnAdd.Click += BtnAdd_Click;
             btnUpdate.Click += BtnUpdate_Click;
             btnDelete.Click += BtnDelete_Click;
-            btnClear.Click += BtnClear_Click;
             btnRefresh.Click += BtnRefresh_Click;
             btnSearch.Click += BtnSearch_Click;
 
@@ -185,12 +184,18 @@ namespace StockManagementSystem.Forms
                     DataTable dtCust = CustomerManager.GetCustomerByName(custName);
                     if (dtCust.Rows.Count > 0)
                     {
-                        selectedCustomer = new Customer { CustomerID = Convert.ToInt32(dtCust.Rows[0]["CustomerID"]) };
+                        selectedCustomer = new Customer(
+                            Convert.ToInt32(dtCust.Rows[0]["CustomerID"]),
+                            dtCust.Rows[0]["Name"].ToString(),
+                            dtCust.Rows[0]["Address"].ToString(),
+                            dtCust.Rows[0]["Phone"].ToString(),
+                            dtCust.Rows[0]["Email"].ToString()
+                        );
                     }
                     else
                     {
-                        int newId = CustomerManager.AddCustomer(custName);
-                        selectedCustomer = new Customer { CustomerID = newId };
+                        int newId = CustomerManager.AddCustomer(custName, "", "", ""); // pass empty strings if optional
+                        selectedCustomer = new Customer(newId, custName, "", "", "");
                     }
                 }
 
@@ -245,11 +250,17 @@ namespace StockManagementSystem.Forms
                 {
                     DataTable dtCust = CustomerManager.GetCustomerByName(custName);
                     if (dtCust.Rows.Count > 0)
-                        selectedCustomer = new Customer { CustomerID = Convert.ToInt32(dtCust.Rows[0]["CustomerID"]) };
+                        selectedCustomer = new Customer(
+                            Convert.ToInt32(dtCust.Rows[0]["CustomerID"]),
+                            dtCust.Rows[0]["Name"].ToString(),
+                            dtCust.Rows[0]["Address"].ToString(),
+                            dtCust.Rows[0]["Phone"].ToString(),
+                            dtCust.Rows[0]["Email"].ToString()
+                        );
                     else
                     {
-                        int newId = CustomerManager.AddCustomer(custName);
-                        selectedCustomer = new Customer { CustomerID = newId };
+                        int newId = CustomerManager.AddCustomer(custName, "", "", "");
+                        selectedCustomer = new Customer(newId, custName, "", "", "");
                     }
                 }
 
@@ -290,11 +301,6 @@ namespace StockManagementSystem.Forms
                 LoadOrders();
                 ClearInputs();
             }
-        }
-
-        private void BtnClear_Click(object sender, EventArgs e)
-        {
-            ClearInputs();
         }
 
         private void BtnRefresh_Click(object sender, EventArgs e)

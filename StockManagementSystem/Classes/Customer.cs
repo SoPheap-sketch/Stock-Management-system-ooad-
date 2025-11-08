@@ -4,7 +4,7 @@ namespace StockManagementSystem.Classes
 {
     public class Customer
     {
-        public int CustomerID { get; set; }    // PK
+        public int CustomerID { get; set; }
         public string Name { get; set; }
         public string Address { get; set; }
         public string Phone { get; set; }
@@ -24,9 +24,9 @@ namespace StockManagementSystem.Classes
         public void ValidateContactInfo()
         {
             if (string.IsNullOrWhiteSpace(Name))
-                throw new Exception("Customer name is required.");
-            if (string.IsNullOrWhiteSpace(Email))
-                throw new Exception("Customer email is required.");
+                throw new ArgumentException("Customer name cannot be empty.");
+            if (string.IsNullOrWhiteSpace(Address))
+                throw new ArgumentException("Customer address cannot be empty.");
         }
     }
 }
