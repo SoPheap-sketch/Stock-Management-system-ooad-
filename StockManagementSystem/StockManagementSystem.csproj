@@ -94,6 +94,7 @@
       <DependentUpon>ProductForm.cs</DependentUpon>
     </Compile>
 
+    <!-- ✅ Added LoginForm correctly -->
     <Compile Include="Forms\LoginForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -136,6 +137,7 @@
       <SubType>Designer</SubType>
     </EmbeddedResource>
 
+    <!-- Resource and Settings -->
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
