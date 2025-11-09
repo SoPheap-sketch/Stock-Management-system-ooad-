@@ -6,11 +6,11 @@ namespace StockManagementSystem.Classes
 {
     public static class CustomerManager
     {
-        // Get all customers
+        // FIXED: Table name is "Customer" NOT "Customers"
         public static DataTable GetAllCustomers()
         {
             DataTable dt = new DataTable();
-            string query = "SELECT CustomerID, Name, Address, Phone, Email FROM Customers ORDER BY Name ASC";
+            string query = "SELECT CustomerId, Name, Address, Phone, Email FROM Customer ORDER BY Name";
 
             try
             {
@@ -24,17 +24,15 @@ namespace StockManagementSystem.Classes
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error loading customers: " + ex.Message);
+                throw new Exception("Error loading customers: " + ex.Message);
             }
-
             return dt;
         }
 
-        // Search customers by name
         public static DataTable GetCustomerByName(string name)
         {
             DataTable dt = new DataTable();
-            string query = "SELECT CustomerID, Name, Address, Phone, Email FROM Customers WHERE Name LIKE @Name ORDER BY Name ASC";
+            string query = "SELECT CustomerId, Name, Address, Phone, Email FROM Customer WHERE Name LIKE @Name ORDER BY Name";
 
             try
             {
@@ -49,17 +47,17 @@ namespace StockManagementSystem.Classes
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error searching customers: " + ex.Message);
+                throw new Exception("Error searching customers: " + ex.Message);
             }
-
             return dt;
         }
 
-        // Add new customer
         public static int AddCustomer(string name, string address, string phone, string email)
         {
-            int newId = 0;
-            string query = "INSERT INTO Customers (Name, Address, Phone, Email) OUTPUT INSERTED.CustomerID VALUES (@Name, @Address, @Phone, @Email)";
+            string query = @"
+                INSERT INTO Customer (Name, Address, Phone, Email) 
+                OUTPUT INSERTED.CustomerId 
+                VALUES (@Name, @Address, @Phone, @Email)";
 
             try
             {
@@ -68,36 +66,36 @@ namespace StockManagementSystem.Classes
                 {
                     cmd.Parameters.AddWithValue("@Name", name);
                     cmd.Parameters.AddWithValue("@Address", address);
-                    cmd.Parameters.AddWithValue("@Phone", phone);
-                    cmd.Parameters.AddWithValue("@Email", email);
+                    cmd.Parameters.AddWithValue("@Phone", (object)phone ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Email", (object)email ?? DBNull.Value);
 
                     conn.Open();
-                    newId = (int)cmd.ExecuteScalar();
+                    return (int)cmd.ExecuteScalar();
                 }
             }
             catch (Exception ex)
             {
                 throw new Exception("Error adding customer: " + ex.Message);
             }
-
-            return newId;
         }
 
-        // Update existing customer
         public static void UpdateCustomer(int customerId, string name, string address, string phone, string email)
         {
-            string query = "UPDATE Customers SET Name=@Name, Address=@Address, Phone=@Phone, Email=@Email WHERE CustomerID=@CustomerID";
+            string query = @"
+                UPDATE Customer 
+                SET Name = @Name, Address = @Address, Phone = @Phone, Email = @Email 
+                WHERE CustomerId = @CustomerId";
 
             try
             {
                 using (SqlConnection conn = DatabaseHelper.GetConnection())
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
-                    cmd.Parameters.AddWithValue("@CustomerID", customerId);
+                    cmd.Parameters.AddWithValue("@CustomerId", customerId);
                     cmd.Parameters.AddWithValue("@Name", name);
                     cmd.Parameters.AddWithValue("@Address", address);
-                    cmd.Parameters.AddWithValue("@Phone", phone);
-                    cmd.Parameters.AddWithValue("@Email", email);
+                    cmd.Parameters.AddWithValue("@Phone", (object)phone ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Email", (object)email ?? DBNull.Value);
 
                     conn.Open();
                     cmd.ExecuteNonQuery();
@@ -109,17 +107,16 @@ namespace StockManagementSystem.Classes
             }
         }
 
-        // Delete a customer
         public static void DeleteCustomer(int customerId)
         {
-            string query = "DELETE FROM Customers WHERE CustomerID=@CustomerID";
+            string query = "DELETE FROM Customer WHERE CustomerId = @CustomerId";
 
             try
             {
                 using (SqlConnection conn = DatabaseHelper.GetConnection())
                 using (SqlCommand cmd = new SqlCommand(query, conn))
                 {
-                    cmd.Parameters.AddWithValue("@CustomerID", customerId);
+                    cmd.Parameters.AddWithValue("@CustomerId", customerId);
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
@@ -127,6 +124,26 @@ namespace StockManagementSystem.Classes
             catch (Exception ex)
             {
                 throw new Exception("Error deleting customer: " + ex.Message);
+            }
+        }
+
+        public static int GetTotalCustomers()
+        {
+            string query = "SELECT COUNT(*) FROM Customer";
+            try
+            {
+                using (SqlConnection conn = DatabaseHelper.GetConnection())
+                {
+                    conn.Open();
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        return (int)cmd.ExecuteScalar();
+                    }
+                }
+            }
+            catch
+            {
+                return 0;
             }
         }
     }

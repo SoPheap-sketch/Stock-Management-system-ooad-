@@ -1,38 +1,70 @@
 ﻿using StockManagementSystem.Classes;
 using System;
 using System.Data;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace StockManagementSystem.Forms
 {
     public partial class CustomerForm : Form
     {
-        // Field to store the ID of the currently selected customer. Nullable int.
+        
         private int? selectedCustomerId = null;
 
         public CustomerForm()
         {
             InitializeComponent();
+            SetupForm();
+            LoadCustomers();
+        }
 
-            // Attach button click events
-            btnAdd.Click += btnAdd_Click;
-            btnEdit.Click += btnEdit_Click;
-            btnDelete.Click += btnDelete_Click;
-            btnSearch.Click += btnSearch_Click;
+        private void SetupForm()
+        {
+            this.Text = "Manage Customers";
+            this.StartPosition = FormStartPosition.CenterScreen;
 
-            // DataGridView settings
+            // Style buttons
+            btnAdd.BackColor = Color.ForestGreen;
+            btnAdd.ForeColor = Color.White;
+            btnAdd.FlatStyle = FlatStyle.Flat;
+
+            btnEdit.BackColor = Color.RoyalBlue;
+            btnEdit.ForeColor = Color.White;
+            btnEdit.FlatStyle = FlatStyle.Flat;
+
+            btnDelete.BackColor = Color.Crimson;
+            btnDelete.ForeColor = Color.White;
+            btnDelete.FlatStyle = FlatStyle.Flat;
+
+            btnSearch.BackColor = Color.DarkOrange;
+            btnSearch.ForeColor = Color.White;
+            btnSearch.FlatStyle = FlatStyle.Flat;
+
+            // DataGridView
             dgvCustomers.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvCustomers.MultiSelect = false;
             dgvCustomers.ReadOnly = true;
             dgvCustomers.AllowUserToAddRows = false;
-
-            // Keep DGV at bottom (assuming these UI components exist)
-            // Note: These lines might need adjustment based on your actual form designer setup.
-            // dgvCustomers.Dock = DockStyle.Bottom;
-            // dgvCustomers.Height = 150; 
-
-            // Handle row click
+            dgvCustomers.BackgroundColor = Color.White;
+            dgvCustomers.GridColor = Color.LightGray;
             dgvCustomers.CellClick += dgvCustomers_CellClick;
+
+            // Add Back button (if not in designer)
+            if (!this.Controls.Contains(btnBack))
+            {
+                Button btnBack = new Button
+                {
+                    Text = "Back",
+                    BackColor = Color.Navy,
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                    Size = new Size(100, 40),
+                    Location = new Point(this.ClientSize.Width - 120, 20)
+                };
+                btnBack.Click += (s, e) => this.Close();
+                this.Controls.Add(btnBack);
+            }
         }
 
         // --- Event Handler for Form Load ---
@@ -40,55 +72,82 @@ namespace StockManagementSystem.Forms
         {
             LoadCustomers();
         }
-
-        // --- Data Loading Method ---
         private void LoadCustomers()
         {
             try
             {
                 DataTable dt = CustomerManager.GetAllCustomers();
-
-                dgvCustomers.DataSource = null;
-                dgvCustomers.Columns.Clear();
                 dgvCustomers.DataSource = dt;
 
-                // Adjust ID column width
-                if (dgvCustomers.Columns.Contains("CustomerID"))
-                    dgvCustomers.Columns["CustomerID"].Width = 50;
+                // Hide ID column
+                if (dgvCustomers.Columns.Contains("CustomerId"))
+                    dgvCustomers.Columns["CustomerId"].Visible = false;
+
+                // Add row numbers
+                AddRowNumbers();
+
+                // Column headers
+                if (dgvCustomers.Columns.Contains("Name")) dgvCustomers.Columns["Name"].HeaderText = "Customer Name";
+                if (dgvCustomers.Columns.Contains("Address")) dgvCustomers.Columns["Address"].HeaderText = "Address";
+                if (dgvCustomers.Columns.Contains("Phone")) dgvCustomers.Columns["Phone"].HeaderText = "Phone";
+                if (dgvCustomers.Columns.Contains("Email")) dgvCustomers.Columns["Email"].HeaderText = "Email";
+
+                dgvCustomers.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Failed to load customers: " + ex.Message);
+                MessageBox.Show("Failed to load customers: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // --- Input Clearing Method ---
+        private void AddRowNumbers()
+        {
+            if (!dgvCustomers.Columns.Contains("No"))
+            {
+                var col = new DataGridViewTextBoxColumn
+                {
+                    Name = "No",
+                    HeaderText = "No.",
+                    Width = 60,
+                    ReadOnly = true
+                };
+                dgvCustomers.Columns.Insert(0, col);
+            }
+
+            for (int i = 0; i < dgvCustomers.Rows.Count; i++)
+            {
+                dgvCustomers.Rows[i].Cells["No"].Value = (i + 1).ToString();
+            }
+        }
+
         private void ClearInputs()
         {
-            // Assuming the TextBoxes are named txtName, txtAddress, txtPhone, txtEmail, txtSearch
             txtName.Clear();
             txtAddress.Clear();
             txtPhone.Clear();
             txtEmail.Clear();
             txtSearch.Clear();
-            // Crucially, reset the selected ID
             selectedCustomerId = null;
+            lblStatus.Text = "No customer selected";
+            lblStatus.ForeColor = Color.Gray;
         }
 
-        // --- DataGridView Cell Click (Selection) Handler ---
+
         private void dgvCustomers_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            // Ensure a valid row index is clicked (not the header or an invalid row)
             if (e.RowIndex < 0 || e.RowIndex >= dgvCustomers.Rows.Count) return;
 
             DataGridViewRow row = dgvCustomers.Rows[e.RowIndex];
+            selectedCustomerId = Convert.ToInt32(row.Cells["CustomerId"].Value);
 
-            // Safely set the selectedCustomerId and populate the text fields
-            selectedCustomerId = Convert.ToInt32(row.Cells["CustomerID"].Value);
-            txtName.Text = row.Cells["Name"].Value.ToString();
-            txtAddress.Text = row.Cells["Address"].Value.ToString();
-            txtPhone.Text = row.Cells["Phone"].Value.ToString();
-            txtEmail.Text = row.Cells["Email"].Value.ToString();
+            txtName.Text = row.Cells["Name"].Value?.ToString() ?? "";
+            txtAddress.Text = row.Cells["Address"].Value?.ToString() ?? "";
+            txtPhone.Text = row.Cells["Phone"].Value?.ToString() ?? "";
+            txtEmail.Text = row.Cells["Email"].Value?.ToString() ?? "";
+
+            lblStatus.Text = $"Selected: {txtName.Text}";
+            lblStatus.ForeColor = Color.DarkGreen;
         }
 
         // --- Button Click Handlers ---
@@ -100,31 +159,38 @@ namespace StockManagementSystem.Forms
             string phone = txtPhone.Text.Trim();
             string email = txtEmail.Text.Trim();
 
-            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(address))
+            if (string.IsNullOrWhiteSpace(name))
             {
+                MessageBox.Show("Customer name is required!", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtName.Focus();
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(address))
+            {
+                MessageBox.Show("Address is required!", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtAddress.Focus();
                 return;
             }
 
             try
             {
-                // Assuming CustomerManager.AddCustomer exists and handles DB logic
                 CustomerManager.AddCustomer(name, address, phone, email);
-                MessageBox.Show("Customer added successfully!");
+                MessageBox.Show("Customer added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearInputs();
                 LoadCustomers();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error adding customer: " + ex.Message);
+                MessageBox.Show("Error: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void btnEdit_Click(object sender, EventArgs e)
         {
-            // *** CORRECTION APPLIED HERE: Check if a customer is selected ***
             if (!selectedCustomerId.HasValue)
             {
-               
+                MessageBox.Show("Please select a customer to edit.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -133,76 +199,84 @@ namespace StockManagementSystem.Forms
             string phone = txtPhone.Text.Trim();
             string email = txtEmail.Text.Trim();
 
-            // Input validation for required fields
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(address))
             {
-                MessageBox.Show("Name and Address are required.");
+                MessageBox.Show("Name and Address are required.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             try
             {
-                // Assuming CustomerManager.UpdateCustomer exists and handles DB logic
                 CustomerManager.UpdateCustomer(selectedCustomerId.Value, name, address, phone, email);
-                MessageBox.Show("Customer updated successfully!");
+                MessageBox.Show("Customer updated successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearInputs();
                 LoadCustomers();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error updating customer: " + ex.Message);
+                MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void btnDelete_Click(object sender, EventArgs e)
         {
-            // *** CORRECTION APPLIED HERE: Check if a customer is selected ***
             if (!selectedCustomerId.HasValue)
             {
-             
+                MessageBox.Show("Please select a customer to delete.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            DialogResult confirm = MessageBox.Show("Are you sure you want to delete this customer?", "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-
-            if (confirm == DialogResult.Yes)
+            if (MessageBox.Show("Delete this customer?\nThis cannot be undone.", "Confirm Delete",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
                 try
                 {
-                    // Assuming CustomerManager.DeleteCustomer exists and handles DB logic
                     CustomerManager.DeleteCustomer(selectedCustomerId.Value);
-                    MessageBox.Show("Customer deleted successfully!");
+                    MessageBox.Show("Customer deleted!", "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     ClearInputs();
                     LoadCustomers();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error deleting customer: " + ex.Message);
+                    MessageBox.Show("Cannot delete: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
 
         private void btnSearch_Click(object sender, EventArgs e)
         {
-            string search = txtSearch.Text.Trim();
+            string keyword = txtSearch.Text.Trim();
             try
             {
-                DataTable dt;
-                if (string.IsNullOrWhiteSpace(search))
-                    dt = CustomerManager.GetAllCustomers();
-                else
-                    dt = CustomerManager.GetCustomerByName(search);
+                DataTable dt = string.IsNullOrEmpty(keyword)
+                    ? CustomerManager.GetAllCustomers()
+                    : CustomerManager.GetCustomerByName(keyword);
 
                 dgvCustomers.DataSource = dt;
-
-                if (dgvCustomers.Columns.Contains("CustomerID"))
-                    dgvCustomers.Columns["CustomerID"].Width = 50;
+                AddRowNumbers();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error searching: " + ex.Message);
+                MessageBox.Show("Search error: " + ex.Message);
             }
         }
 
+        private void txtName_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnBack_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void btnClear_Click(object sender, EventArgs e)
+        {
+            txtName.Clear();
+            txtEmail.Clear();
+            txtPhone.Clear();
+            txtAddress.Clear();
+        }
     }
 }

@@ -6,17 +6,14 @@ using System.Threading.Tasks;
 
 namespace StockManagementSystem.Classes
 {
-    public enum UserRole { Admin, Employee }
-    internal class User
+
+    public class User
     {
         public int UserId { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public string PasswordHash { get; set; } = string.Empty;
-        public UserRole Role { get; set; }
-   
-
-        //public bool Authenticate(string password ) => BCrypt.Net.BCrypt.Verify(password, PasswordHash);
-
-        public bool HasPermission(string action) => Role == UserRole.Admin || action == "View";
+        public string Username { get; set; } = "";
+        public string PasswordHash { get; set; } = "";
+        public string Role { get; set; } = "";
+        public bool HasPermission(string action) => Role == "Admin";
+        public override string ToString() => Username;
     }
 }

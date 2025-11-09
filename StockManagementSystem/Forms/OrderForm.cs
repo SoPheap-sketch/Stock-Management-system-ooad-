@@ -1,16 +1,21 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using StockManagementSystem.Classes;
-using System.Collections.Generic;
 
 namespace StockManagementSystem.Forms
 {
     public partial class OrderForm : Form
     {
         private int selectedOrderId = -1;
-
+        private List<OrderItem> currentItems = new List<OrderItem>();
         public OrderForm()
         {
             InitializeComponent();
@@ -21,334 +26,359 @@ namespace StockManagementSystem.Forms
         {
             LoadCustomers();
             LoadProducts();
-            SetupDataGridView();
-            LoadOrders();
+            SetupGrids();
+            RefreshOrderList();
+            UpdateTotal();
+            lblOrderDate.Text = DateTime.Now.ToString("MMMM dd, yyyy - hh:mm tt");
+        }
+        private void RefreshItemsGrid()
+        {
+            dgvOrderItems.Rows.Clear();
+            foreach (var item in currentItems)
+            {
+                decimal subtotal = item.CalculateSubtotal();
+                dgvOrderItems.Rows.Add(
+                    item.Product.Name,
+                    item.Quantity,
+                    item.PriceAtPurchase.ToString("C2"),
+                    subtotal.ToString("C2")
+                );
+            }
+        }
+        private void RefreshOrderList()
+        {
+            dgvOrder.Rows.Clear();
+            try
+            {
+                string sql = @"
+                    SELECT o.OrderId, ISNULL(c.Name, 'Walk-in') AS CustomerName,
+                           o.TotalAmount, o.Status, o.OrderDate
+                    FROM [Order] o
+                    LEFT JOIN Customer c ON o.CustomerId = c.CustomerId
+                    ORDER BY o.OrderDate DESC";
 
-            // Buttons
-            btnAdd.Click += BtnAdd_Click;
-            btnUpdate.Click += BtnUpdate_Click;
-            btnDelete.Click += BtnDelete_Click;
-            btnRefresh.Click += BtnRefresh_Click;
-            btnSearch.Click += BtnSearch_Click;
-
-            // DataGridView click
-            dgvOrders.CellClick += DgvOrders_CellClick;
-
-            // Status ComboBox
-            cmbStatus.Items.Clear();
-            cmbStatus.Items.AddRange(new string[] { "Delivered", "Pending", "Cancelled" });
-            cmbStatus.SelectedIndex = 1; // Default to Pending
-
-            // Allow free text input for Customer
-            cmbCustomer.DropDownStyle = ComboBoxStyle.DropDown;
+                var dt = DatabaseHelper.ExecuteQuery(sql);
+                foreach (DataRow r in dt.Rows)
+                {
+                    dgvOrder.Rows.Add(
+                        r["OrderId"],
+                        r["CustomerName"],
+                        decimal.Parse(r["TotalAmount"].ToString()).ToString("C2"),
+                        r["Status"],
+                        DateTime.Parse(r["OrderDate"].ToString()).ToString("MMM dd, yyyy HH:mm")
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error loading orders: " + ex.Message);
+            }
         }
 
+        private void UpdateTotal()
+        {
+            decimal total = currentItems.Sum(x => x.CalculateSubtotal());
+            txtTotal.Text = total.ToString("C2");
+        }
         private void LoadCustomers()
         {
             try
             {
-                DataTable customers = CustomerManager.GetAllCustomers();
+                var dt = DatabaseHelper.ExecuteQuery(@"
+                    SELECT CustomerId, Name FROM Customer 
+                    UNION ALL 
+                    SELECT NULL, '--- Walk-in Customer ---' 
+                    ORDER BY Name");
 
-                // Add walk-in customer option
-                DataRow newRow = customers.NewRow();
-                newRow["CustomerID"] = DBNull.Value;
-                newRow["Name"] = "--- Walk-in Customer ---";
-                customers.Rows.InsertAt(newRow, 0);
-
-                cmbCustomer.DataSource = customers;
+                cmbCustomer.DataSource = dt;
                 cmbCustomer.DisplayMember = "Name";
-                cmbCustomer.ValueMember = "CustomerID";
-                cmbCustomer.SelectedIndex = 0;
+                cmbCustomer.ValueMember = "CustomerId";
+                cmbCustomer.SelectedIndex = dt.Rows.Count - 1; // Walk-in default
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error loading customers: " + ex.Message);
-                cmbCustomer.DataSource = null;
             }
         }
 
         private void LoadProducts()
         {
-            DataTable products = ProductManager.GetAllProducts();
-            cmbProduct.DataSource = products;
-            cmbProduct.DisplayMember = "ProductName";
-            cmbProduct.ValueMember = "ProductID";
-        }
-
-        private void SetupDataGridView()
-        {
-            dgvOrders.Columns.Clear();
-            dgvOrders.Columns.Add("OrderID", "Order ID");
-            dgvOrders.Columns.Add("CustomerName", "Customer");
-            dgvOrders.Columns.Add("ProductName", "Product");
-            dgvOrders.Columns.Add("Quantity", "Quantity");
-            dgvOrders.Columns.Add("Price", "Price");
-            dgvOrders.Columns.Add("Total", "Total");
-            dgvOrders.Columns.Add("Status", "Status");
-            dgvOrders.Columns.Add("OrderDate", "Date");
-
-            dgvOrders.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgvOrders.ReadOnly = true;
-            dgvOrders.AllowUserToAddRows = false;
-            dgvOrders.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvOrders.EnableHeadersVisualStyles = false;
-            dgvOrders.ColumnHeadersDefaultCellStyle.BackColor = Color.LightGray;
-            dgvOrders.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-            dgvOrders.CellFormatting += DgvOrders_CellFormatting;
-        }
-
-        private void DgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (dgvOrders.Columns[e.ColumnIndex].Name == "Status" && e.Value != null)
-            {
-                switch (e.Value.ToString())
-                {
-                    case "Delivered": e.CellStyle.ForeColor = Color.Green; break;
-                    case "Pending": e.CellStyle.ForeColor = Color.Orange; break;
-                    case "Cancelled": e.CellStyle.ForeColor = Color.Red; break;
-                }
-            }
-        }
-
-        private void LoadOrders()
-        {
-            dgvOrders.Rows.Clear();
-            DataTable dt = OrderManager.GetOrders();
-
-            foreach (DataRow row in dt.Rows)
-            {
-                string customerName = row["CustomerName"] != DBNull.Value
-                                      ? row["CustomerName"].ToString()
-                                      : "--- Walk-in Customer ---";
-
-                decimal price = Convert.ToDecimal(row["Price"]);
-                int quantity = Convert.ToInt32(row["Quantity"]);
-
-                dgvOrders.Rows.Add(
-                    row["OrderID"],
-                    customerName,
-                    row["ProductName"],
-                    quantity,
-                    price.ToString("C2"),
-                    (price * quantity).ToString("C2"),
-                    row["Status"],
-                    Convert.ToDateTime(row["OrderDate"]).ToString("MM/dd/yyyy")
-                );
-            }
-        }
-
-        private void DgvOrders_CellClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
-
-            DataGridViewRow row = dgvOrders.Rows[e.RowIndex];
-            selectedOrderId = Convert.ToInt32(row.Cells["OrderID"].Value);
-
-            // Customer
-            string custName = row.Cells["CustomerName"].Value.ToString();
-            int custIndex = cmbCustomer.FindStringExact(custName);
-            cmbCustomer.SelectedIndex = custIndex >= 0 ? custIndex : 0;
-
-            // Product
-            cmbProduct.Text = row.Cells["ProductName"].Value.ToString();
-
-            // Quantity
-            numQuantity.Value = Convert.ToInt32(row.Cells["Quantity"].Value);
-
-            // Price
-            decimal cellPrice;
-            if (decimal.TryParse(row.Cells["Price"].Value.ToString(), System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.CurrentCulture, out cellPrice))
-            {
-                txtPrice.Text = cellPrice.ToString("F2");
-            }
-
-            // Status
-            cmbStatus.Text = row.Cells["Status"].Value.ToString();
-        }
-
-        private void BtnAdd_Click(object sender, EventArgs e)
-        {
             try
             {
-                if (cmbProduct.SelectedValue == null || numQuantity.Value <= 0 || !decimal.TryParse(txtPrice.Text, out decimal priceAtPurchase))
-                {
-                    MessageBox.Show("Please select a product, quantity, and valid price.");
-                    return;
-                }
+                var dt = ProductManager.GetAllProducts();
+                cmbProduct.DataSource = dt.Copy();
+                cmbProduct.DisplayMember = "Name";
+                cmbProduct.ValueMember = "ProductId";
 
-                string custName = cmbCustomer.Text.Trim();
-                Customer selectedCustomer = null;
-
-                if (!string.IsNullOrEmpty(custName) && custName != "--- Walk-in Customer ---")
+                // Auto-fill price when product changes
+                cmbProduct.SelectedIndexChanged += (s, e) =>
                 {
-                    DataTable dtCust = CustomerManager.GetCustomerByName(custName);
-                    if (dtCust.Rows.Count > 0)
+                    if (cmbProduct.SelectedValue != null && cmbProduct.SelectedIndex >= 0)
                     {
-                        selectedCustomer = new Customer(
-                            Convert.ToInt32(dtCust.Rows[0]["CustomerID"]),
-                            dtCust.Rows[0]["Name"].ToString(),
-                            dtCust.Rows[0]["Address"].ToString(),
-                            dtCust.Rows[0]["Phone"].ToString(),
-                            dtCust.Rows[0]["Email"].ToString()
-                        );
+                        var row = ((DataRowView)cmbProduct.SelectedItem).Row;
+                        txtPrice.Text = row["Price"].ToString();
                     }
-                    else
-                    {
-                        int newId = CustomerManager.AddCustomer(custName, "", "", ""); // pass empty strings if optional
-                        selectedCustomer = new Customer(newId, custName, "", "", "");
-                    }
-                }
-
-                Product selectedProduct = new Product
-                {
-                    ProductID = (int)cmbProduct.SelectedValue,
-                    ProductName = cmbProduct.Text,
-                    Price = priceAtPurchase
                 };
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error loading products: " + ex.Message);
+            }
+        }
 
-                OrderItem newItem = new OrderItem
+        private void SetupGrids()
+        {
+            // Order Items Grid
+            dgvOrderItems.Columns.Clear();
+            dgvOrderItems.Columns.Add("Product", "Product");
+            dgvOrderItems.Columns.Add("Qty", "Qty");
+            dgvOrderItems.Columns.Add("Price", "Price");
+            dgvOrderItems.Columns.Add("Subtotal", "Subtotal");
+            dgvOrderItems.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvOrderItems.AllowUserToAddRows = false;
+
+            // Orders List Grid
+            dgvOrder.Columns.Clear();
+            dgvOrder.Columns.Add("OrderId", "Order ID");
+            dgvOrder.Columns.Add("Customer", "Customer");
+            dgvOrder.Columns.Add("Total", "Total");
+            dgvOrder.Columns.Add("Status", "Status");
+            dgvOrder.Columns.Add("Date", "Date");
+            dgvOrder.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvOrder.ReadOnly = true;
+            dgvOrder.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        }
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void gbAddItem_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void lblOrderDate_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void cmbCustomer_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void cmbStatus_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtSearch_TextChanged(object sender, EventArgs e)
+        {
+            string keyword = txtSearch.Text.Trim().ToLower();
+            foreach (DataGridViewRow row in dgvOrder.Rows)
+            {
+                bool match = row.Cells["Customer"].Value?.ToString().ToLower().Contains(keyword) == true ||
+                             row.Cells["OrderId"].Value?.ToString().Contains(keyword) == true;
+                row.Visible = string.IsNullOrEmpty(keyword) || match;
+            }
+        }
+
+        private void label3_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void cmbProduct_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void numQuantity_ValueChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtPrice_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnAddItem_Click(object sender, EventArgs e)
+        {
+            if (cmbProduct.SelectedValue == null || numQuantity.Value < 1)
+            {
+                MessageBox.Show("Please select a product and quantity.", "Invalid Input", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!decimal.TryParse(txtPrice.Text, out decimal price) || price <= 0)
+            {
+                MessageBox.Show("Please enter a valid price.", "Invalid Price", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int productId = (int)cmbProduct.SelectedValue;
+            string productName = cmbProduct.Text;
+
+            var existing = currentItems.FirstOrDefault(x => x.Product.ProductId == productId);
+            if (existing != null)
+            {
+                existing.Quantity += (int)numQuantity.Value;
+            }
+            else
+            {
+                currentItems.Add(new OrderItem
                 {
-                    Product = selectedProduct,
+                    Product = new Product { ProductId = productId, Name = productName },
                     Quantity = (int)numQuantity.Value,
-                    PriceAtPurchase = priceAtPurchase
-                };
-
-                Order order = new Order
-                {
-                    Customer = selectedCustomer,
-                    Status = cmbStatus.Text,
-                    OrderDate = DateTime.Now,
-                    OrderItems = new List<OrderItem> { newItem }
-                };
-
-                OrderManager.AddOrder(order);
-                LoadOrders();
-                ClearInputs();
+                    PriceAtPurchase = price
+                });
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error adding order: " + ex.Message);
-            }
-        }
 
-        private void BtnUpdate_Click(object sender, EventArgs e)
-        {
-            if (selectedOrderId <= 0) return;
-
-            try
-            {
-                if (cmbProduct.SelectedValue == null || numQuantity.Value <= 0 || !decimal.TryParse(txtPrice.Text, out decimal priceAtPurchase))
-                {
-                    MessageBox.Show("Please select a product, quantity, and valid price.");
-                    return;
-                }
-
-                string custName = cmbCustomer.Text.Trim();
-                Customer selectedCustomer = null;
-
-                if (!string.IsNullOrEmpty(custName) && custName != "--- Walk-in Customer ---")
-                {
-                    DataTable dtCust = CustomerManager.GetCustomerByName(custName);
-                    if (dtCust.Rows.Count > 0)
-                        selectedCustomer = new Customer(
-                            Convert.ToInt32(dtCust.Rows[0]["CustomerID"]),
-                            dtCust.Rows[0]["Name"].ToString(),
-                            dtCust.Rows[0]["Address"].ToString(),
-                            dtCust.Rows[0]["Phone"].ToString(),
-                            dtCust.Rows[0]["Email"].ToString()
-                        );
-                    else
-                    {
-                        int newId = CustomerManager.AddCustomer(custName, "", "", "");
-                        selectedCustomer = new Customer(newId, custName, "", "", "");
-                    }
-                }
-
-                Order updatedOrder = new Order
-                {
-                    OrderID = selectedOrderId,
-                    Customer = selectedCustomer,
-                    Status = cmbStatus.Text,
-                    OrderItems = new List<OrderItem>
-                    {
-                        new OrderItem
-                        {
-                            Product = new Product { ProductID = (int)cmbProduct.SelectedValue },
-                            Quantity = (int)numQuantity.Value,
-                            PriceAtPurchase = priceAtPurchase
-                        }
-                    }
-                };
-
-                OrderManager.UpdateOrder(updatedOrder);
-                LoadOrders();
-                ClearInputs();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error updating order: " + ex.Message);
-            }
-        }
-
-        private void BtnDelete_Click(object sender, EventArgs e)
-        {
-            if (selectedOrderId <= 0) return;
-
-            var confirm = MessageBox.Show("Are you sure you want to delete this order?", "Confirm Delete", MessageBoxButtons.YesNo);
-            if (confirm == DialogResult.Yes)
-            {
-                OrderManager.DeleteOrder(selectedOrderId);
-                LoadOrders();
-                ClearInputs();
-            }
-        }
-
-        private void BtnRefresh_Click(object sender, EventArgs e)
-        {
-            LoadOrders();
-            ClearInputs();
-        }
-
-        private void BtnSearch_Click(object sender, EventArgs e)
-        {
-            string search = txtSearch.Text.Trim().ToLower();
-            dgvOrders.Rows.Clear();
-
-            DataTable dt = OrderManager.GetOrders();
-            foreach (DataRow row in dt.Rows)
-            {
-                string customerName = row["CustomerName"] != DBNull.Value
-                                      ? row["CustomerName"].ToString()
-                                      : "--- Walk-in Customer ---";
-                string productName = row["ProductName"].ToString();
-
-                if (!customerName.ToLower().Contains(search) && !productName.ToLower().Contains(search))
-                    continue;
-
-                decimal price = Convert.ToDecimal(row["Price"]);
-                int quantity = Convert.ToInt32(row["Quantity"]);
-
-                dgvOrders.Rows.Add(
-                    row["OrderID"],
-                    customerName,
-                    productName,
-                    quantity,
-                    price.ToString("C2"),
-                    (price * quantity).ToString("C2"),
-                    row["Status"],
-                    Convert.ToDateTime(row["OrderDate"]).ToString("MM/dd/yyyy")
-                );
-            }
-        }
-
-        private void ClearInputs()
-        {
-            selectedOrderId = -1;
-            cmbCustomer.Text = "--- Walk-in Customer ---";
-            cmbProduct.SelectedIndex = cmbProduct.Items.Count > 0 ? 0 : -1;
+            RefreshItemsGrid();
+            UpdateTotal();
             numQuantity.Value = 1;
             txtPrice.Clear();
-            cmbStatus.SelectedIndex = 1;
+            cmbProduct.SelectedIndex = -1;
+            cmbProduct.Focus();
         }
+
+        private void btnRemoveItem_Click(object sender, EventArgs e)
+        {
+            if (dgvOrderItems.CurrentRow != null)
+            {
+                int index = dgvOrderItems.CurrentRow.Index;
+                currentItems.RemoveAt(index);
+                RefreshItemsGrid();
+                UpdateTotal();
+            }
+        }
+
+        private void dgvOrderItems_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+        }
+
+        private void btnCompleteOrder_Click(object sender, EventArgs e)
+        {
+            if (currentItems.Count == 0)
+            {
+                MessageBox.Show("Please add at least one item.", "Empty Order", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int? customerId = cmbCustomer.SelectedValue is DBNull ? (int?)null : (int)cmbCustomer.SelectedValue;
+
+            var order = new Order
+            {
+                Customer = customerId.HasValue ? new Customer { CustomerId = customerId.Value } : null,
+                OrderItems = currentItems.ToList(),
+                Status = "Completed",
+                OrderDate = DateTime.Now
+            };
+
+            try
+            {
+                OrderManager.AddOrder(order);
+                MessageBox.Show($"Order #{order.OrderID} completed successfully!\nTotal: {txtTotal.Text}",
+                    "Order Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                ClearAll();
+                RefreshOrderList();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message, "Order Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        private void ClearAll()
+        {
+            currentItems.Clear();
+            RefreshItemsGrid();
+            UpdateTotal();
+            selectedOrderId = -1;
+            numQuantity.Value = 1;
+            txtPrice.Clear();
+            cmbProduct.SelectedIndex = -1;
+            cmbCustomer.SelectedIndex = cmbCustomer.Items.Count - 1;
+        }
+        private void btnCancelOrder_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show("Cancel this order?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                ClearAll();
+            }
+        }
+
+        private void btnClear_Click(object sender, EventArgs e)
+        {
+            ClearAll();
+        }
+
+        private void btnRefresh_Click(object sender, EventArgs e)
+        {
+            RefreshOrderList();
+        }
+
+        private void txtTotal_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void dgvOrder_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            selectedOrderId = (int)dgvOrder.Rows[e.RowIndex].Cells["OrderId"].Value;
+
+            // Load items for this order
+            LoadOrderItems(selectedOrderId);
+        }
+        private void LoadOrderItems(int orderId)
+        {
+            currentItems.Clear();
+            RefreshItemsGrid();
+            UpdateTotal();
+
+            try
+            {
+                string sql = @"
+            SELECT p.Name, oi.Quantity, oi.UnitPrice
+            FROM OrderItem oi
+            JOIN Product p ON oi.ProductId = p.ProductId
+            WHERE oi.OrderId = @OrderId";
+
+                var parameters = new[] { new SqlParameter("@OrderId", orderId) };
+                var dt = DatabaseHelper.ExecuteQuery(sql, parameters);
+
+                foreach (DataRow r in dt.Rows)
+                {
+                    currentItems.Add(new OrderItem
+                    {
+                        Product = new Product { Name = r["Name"].ToString() },
+                        Quantity = (int)r["Quantity"],
+                        PriceAtPurchase = (decimal)r["UnitPrice"]
+                    });
+                }
+
+                RefreshItemsGrid();
+                UpdateTotal();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error loading order items: " + ex.Message);
+            }
+        }
+
     }
 }

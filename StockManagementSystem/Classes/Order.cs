@@ -5,18 +5,11 @@ namespace StockManagementSystem.Classes
 {
     public class Order
     {
-        public int OrderID { get; set; }
-        public int ProductID { get; set; }        // TEMP: for current form
-        public string ProductName { get; set; }   // TEMP: for current form
-        public int Quantity { get; set; }         // TEMP: for current form
-        public decimal Price { get; set; }        // TEMP: for current form
-        public string Status { get; set; }
-        public DateTime OrderDate { get; set; }
-        public decimal TotalAmount => Quantity * Price;
-
-        // --- New UML fields ---
+        public int OrderID { get; set; }  
         public Customer Customer { get; set; }
         public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+        public string Status { get; set; }
+        public DateTime OrderDate { get; set; }
 
         public decimal CalculateTotal()
         {
@@ -24,16 +17,6 @@ namespace StockManagementSystem.Classes
             foreach (var item in OrderItems)
                 total += item.CalculateSubtotal();
             return total;
-        }
-
-        public void AddItem(OrderItem item)
-        {
-            OrderItems.Add(item);
-        }
-
-        public void CompleteOrder()
-        {
-            Status = "Delivered";
         }
     }
 }

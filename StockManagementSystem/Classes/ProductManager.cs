@@ -6,152 +6,102 @@ namespace StockManagementSystem.Classes
 {
     public static class ProductManager
     {
-        // Get all products
+        private const string SelectAllSql = @"
+            SELECT p.ProductId, p.Name, p.Price, p.QuantityInStock, p.Description, 
+                   p.CategoryId, c.Name AS CategoryName
+            FROM Product p
+            LEFT JOIN Category c ON p.CategoryId = c.CategoryId";
+
+        // -----------------------------------------------------------------
         public static DataTable GetAllProducts()
         {
-            DataTable dt = new DataTable();
-            try
-            {
-                using (SqlConnection conn = DatabaseHelper.GetConnection())
-                {
-                    conn.Open();
-                    SqlDataAdapter da = new SqlDataAdapter("SELECT * FROM Products", conn);
-                    da.Fill(dt);
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error loading products: " + ex.Message);
-            }
-            return dt;
+            return DatabaseHelper.ExecuteQuery(SelectAllSql);
         }
 
-        // Add product
+        // -----------------------------------------------------------------
+        public static DataTable SearchProducts(string keyword)
+        {
+            string sql = SelectAllSql + " WHERE p.Name LIKE @kw OR c.Name LIKE @kw";
+            var p = new[] { new SqlParameter("@kw", $"%{keyword}%") };
+            return DatabaseHelper.ExecuteQuery(sql, p);
+        }
+
+        // -----------------------------------------------------------------
         public static string AddProduct(Product product)
         {
             try
             {
-                using (SqlConnection conn = DatabaseHelper.GetConnection())
+                string sql = @"
+                    INSERT INTO Product (Name, Price, QuantityInStock, Description, CategoryId)
+                    VALUES (@Name, @Price, @Qty, @Desc, @CatId)";
+                var p = new[]
                 {
-                    conn.Open();
-                    string query = "INSERT INTO Products (ProductName, Category, Quantity, Price) " +
-                                   "VALUES (@name, @category, @quantity, @price)";
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@name", product.ProductName);
-                        cmd.Parameters.AddWithValue("@category", product.Category);
-                        cmd.Parameters.AddWithValue("@quantity", product.Quantity);
-                        cmd.Parameters.AddWithValue("@price", product.Price);
-                        cmd.Parameters.AddWithValue("@date", DateTime.Now);
-                        cmd.ExecuteNonQuery();
-                    }
-                }
+                    new SqlParameter("@Name", product.Name),
+                    new SqlParameter("@Price", product.Price),
+                    new SqlParameter("@Qty", product.QuantityInStock),
+                    new SqlParameter("@Desc", product.Description ?? (object)DBNull.Value),
+                    new SqlParameter("@CatId", product.CategoryId)
+                };
+                DatabaseHelper.ExecuteNonQuery(sql, p);
                 return "OK";
             }
-            catch (Exception ex)
-            {
-                return ex.Message;
-            }
+            catch (Exception ex) { return ex.Message; }
         }
 
-        // Update product
+        // -----------------------------------------------------------------
         public static bool UpdateProduct(Product product)
         {
             try
             {
-                using (SqlConnection conn = DatabaseHelper.GetConnection())
+                string sql = @"
+                    UPDATE Product 
+                    SET Name=@Name, Price=@Price, QuantityInStock=@Qty, 
+                        Description=@Desc, CategoryId=@CatId
+                    WHERE ProductId=@Id";
+                var p = new[]
                 {
-                    conn.Open();
-                    string query = "UPDATE Products SET ProductName=@name, Category=@category, Quantity=@quantity, Price=@price " +
-                                   "WHERE ProductID=@id";
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@id", product.ProductID);
-                        cmd.Parameters.AddWithValue("@name", product.ProductName);
-                        cmd.Parameters.AddWithValue("@category", product.Category);
-                        cmd.Parameters.AddWithValue("@quantity", product.Quantity);
-                        cmd.Parameters.AddWithValue("@price", product.Price);
-                        int rows = cmd.ExecuteNonQuery();
-                        return rows > 0;
-                    }
-                }
+                    new SqlParameter("@Id", product.ProductId),
+                    new SqlParameter("@Name", product.Name),
+                    new SqlParameter("@Price", product.Price),
+                    new SqlParameter("@Qty", product.QuantityInStock),
+                    new SqlParameter("@Desc", product.Description ?? (object)DBNull.Value),
+                    new SqlParameter("@CatId", product.CategoryId)
+                };
+                return DatabaseHelper.ExecuteNonQuery(sql, p) > 0;
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
 
-        // Delete product
+        // -----------------------------------------------------------------
         public static bool DeleteProduct(int productId)
         {
             try
             {
+                string sql = "DELETE FROM Product WHERE ProductId=@Id";
+                var p = new[] { new SqlParameter("@Id", productId) };
+                return DatabaseHelper.ExecuteNonQuery(sql, p) > 0;
+            }
+            catch { return false; }
+        }
+        public static int GetTotalProducts()
+        {
+            string query = "SELECT COUNT(*) FROM Product";
+            try
+            {
                 using (SqlConnection conn = DatabaseHelper.GetConnection())
                 {
                     conn.Open();
-                    string query = "DELETE FROM Products WHERE ProductID=@id";
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@id", productId);
-                        int rows = cmd.ExecuteNonQuery();
-                        return rows > 0;
+                        return (int)cmd.ExecuteScalar();
                     }
                 }
             }
             catch
             {
-                return false;
+                return 0;
             }
         }
-
-        // Search products
-        public static DataTable SearchProducts(string keyword)
-        {
-            DataTable dt = new DataTable();
-            try
-            {
-                using (SqlConnection conn = DatabaseHelper.GetConnection())
-                {
-                    conn.Open();
-                    string query = "SELECT * FROM Products WHERE ProductName LIKE @keyword OR Category LIKE @keyword";
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@keyword", "%" + keyword + "%");
-                        SqlDataAdapter da = new SqlDataAdapter(cmd);
-                        da.Fill(dt);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error searching products: " + ex.Message);
-            }
-            return dt;
-        }
-        // Get total product count
-        public static int GetTotalProducts()
-        {
-            int count = 0;
-            try
-            {
-                using (SqlConnection conn = DatabaseHelper.GetConnection())
-                {
-                    conn.Open();
-                    string query = "SELECT COUNT(*) FROM Products";
-                    using (SqlCommand cmd = new SqlCommand(query, conn))
-                    {
-                        count = (int)cmd.ExecuteScalar();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error counting products: " + ex.Message);
-            }
-            return count;
-        }
-
     }
 
 }

@@ -8,17 +8,18 @@ using System.Windows.Forms;
 
 namespace StockManagementSystem.Classes
 {
-    internal class Category
+    public class Category  
     {
-        public int CategoryId {  get; set; }
+        public int CategoryId { get; set; }
         public string Name { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty; 
+        public string Description { get; set; }
 
         public void Validate()
         {
-            if ( string.IsNullOrWhiteSpace(Name))
-                throw new ArgumentException("Category name is required"); 
+            if (string.IsNullOrWhiteSpace(Name))
+                throw new ArgumentException("Category name is required");
         }
+
         public override string ToString() => Name;
     }
 }
